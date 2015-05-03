@@ -21,8 +21,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/btcsuite/btcutil/hdkeychain"
-	"github.com/btcsuite/btcwallet/waddrmgr"
+	"github.com/btcsuitereleases/btcutil/hdkeychain"
+	"github.com/btcsuitereleases/btcwallet/waddrmgr"
 )
 
 func TestPoolEnsureUsedAddr(t *testing.T) {

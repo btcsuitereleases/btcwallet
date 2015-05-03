@@ -17,11 +17,11 @@
 package wallet
 
 import (
-	"github.com/btcsuite/btcd/wire"
-	"github.com/btcsuite/btcutil"
-	"github.com/btcsuite/btcwallet/chain"
-	"github.com/btcsuite/btcwallet/txstore"
-	"github.com/btcsuite/btcwallet/waddrmgr"
+	"github.com/btcsuitereleases/btcd/wire"
+	"github.com/btcsuitereleases/btcutil"
+	"github.com/btcsuitereleases/btcwallet/chain"
+	"github.com/btcsuitereleases/btcwallet/txstore"
+	"github.com/btcsuitereleases/btcwallet/waddrmgr"
 )
 
 // RescanProgressMsg reports the current progress made by a rescan for a

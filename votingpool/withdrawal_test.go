@@ -20,9 +20,9 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/btcsuite/btcutil"
-	"github.com/btcsuite/btcutil/hdkeychain"
-	vp "github.com/btcsuite/btcwallet/votingpool"
+	"github.com/btcsuitereleases/btcutil"
+	"github.com/btcsuitereleases/btcutil/hdkeychain"
+	vp "github.com/btcsuitereleases/btcwallet/votingpool"
 )
 
 func TestStartWithdrawal(t *testing.T) {
