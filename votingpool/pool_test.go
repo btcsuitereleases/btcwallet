@@ -23,11 +23,11 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/btcsuitereleases/btcutil/hdkeychain"
-	vp "github.com/btcsuitereleases/btcwallet/votingpool"
-	"github.com/btcsuitereleases/btcwallet/waddrmgr"
-	"github.com/btcsuitereleases/btcwallet/walletdb"
-	_ "github.com/btcsuitereleases/btcwallet/walletdb/bdb"
+	"github.com/btcsuite/btcutil/hdkeychain"
+	vp "github.com/btcsuite/btcwallet/votingpool"
+	"github.com/btcsuite/btcwallet/waddrmgr"
+	"github.com/btcsuite/btcwallet/walletdb"
+	_ "github.com/btcsuite/btcwallet/walletdb/bdb"
 )
 
 func TestLoadPoolAndDepositScript(t *testing.T) {

@@ -23,12 +23,12 @@ import (
 	"sort"
 	"strconv"
 
-	"github.com/btcsuitereleases/btcd/txscript"
-	"github.com/btcsuitereleases/btcd/wire"
-	"github.com/btcsuitereleases/btcutil"
-	"github.com/btcsuitereleases/btcwallet/txstore"
-	"github.com/btcsuitereleases/btcwallet/waddrmgr"
-	"github.com/btcsuitereleases/fastsha256"
+	"github.com/btcsuite/btcd/txscript"
+	"github.com/btcsuite/btcd/wire"
+	"github.com/btcsuite/btcutil"
+	"github.com/btcsuite/btcwallet/txstore"
+	"github.com/btcsuite/btcwallet/waddrmgr"
+	"github.com/btcsuite/fastsha256"
 )
 
 // Maximum tx size (in bytes). This should be the same as bitcoind's

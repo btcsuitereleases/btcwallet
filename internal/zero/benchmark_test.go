@@ -3,7 +3,7 @@ package zero_test
 import (
 	"testing"
 
-	. "github.com/btcsuitereleases/btcwallet/internal/zero"
+	. "github.com/btcsuite/btcwallet/internal/zero"
 )
 
 var (

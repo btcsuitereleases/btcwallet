@@ -22,14 +22,14 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/btcsuitereleases/btcd/btcec"
-	"github.com/btcsuitereleases/btcd/chaincfg"
-	"github.com/btcsuitereleases/btcd/wire"
-	"github.com/btcsuitereleases/btcutil"
-	"github.com/btcsuitereleases/btcutil/hdkeychain"
-	"github.com/btcsuitereleases/btcwallet/internal/zero"
-	"github.com/btcsuitereleases/btcwallet/snacl"
-	"github.com/btcsuitereleases/btcwallet/walletdb"
+	"github.com/btcsuite/btcd/btcec"
+	"github.com/btcsuite/btcd/chaincfg"
+	"github.com/btcsuite/btcd/wire"
+	"github.com/btcsuite/btcutil"
+	"github.com/btcsuite/btcutil/hdkeychain"
+	"github.com/btcsuite/btcwallet/internal/zero"
+	"github.com/btcsuite/btcwallet/snacl"
+	"github.com/btcsuite/btcwallet/walletdb"
 )
 
 const (

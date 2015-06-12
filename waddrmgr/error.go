@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/btcsuitereleases/btcutil/hdkeychain"
+	"github.com/btcsuite/btcutil/hdkeychain"
 )
 
 var (

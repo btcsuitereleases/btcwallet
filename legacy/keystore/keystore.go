@@ -34,13 +34,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/btcsuitereleases/btcd/btcec"
-	"github.com/btcsuitereleases/btcd/chaincfg"
-	"github.com/btcsuitereleases/btcd/txscript"
-	"github.com/btcsuitereleases/btcd/wire"
-	"github.com/btcsuitereleases/btcutil"
-	"github.com/btcsuitereleases/btcwallet/rename"
-	"github.com/btcsuitereleases/golangcrypto/ripemd160"
+	"github.com/btcsuite/btcd/btcec"
+	"github.com/btcsuite/btcd/chaincfg"
+	"github.com/btcsuite/btcd/txscript"
+	"github.com/btcsuite/btcd/wire"
+	"github.com/btcsuite/btcutil"
+	"github.com/btcsuite/btcwallet/rename"
+	"github.com/btcsuite/golangcrypto/ripemd160"
 )
 
 const (

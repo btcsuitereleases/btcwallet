@@ -17,10 +17,10 @@
 package wallet
 
 import (
-	"github.com/btcsuitereleases/btcd/chaincfg"
-	"github.com/btcsuitereleases/btcwallet/txstore"
-	"github.com/btcsuitereleases/btcwallet/waddrmgr"
-	"github.com/btcsuitereleases/btcwallet/walletdb"
+	"github.com/btcsuite/btcd/chaincfg"
+	"github.com/btcsuite/btcwallet/txstore"
+	"github.com/btcsuite/btcwallet/waddrmgr"
+	"github.com/btcsuite/btcwallet/walletdb"
 )
 
 // Config is a structure used to initialize a Wallet

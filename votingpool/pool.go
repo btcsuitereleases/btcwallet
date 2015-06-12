@@ -20,12 +20,12 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/btcsuitereleases/btcd/txscript"
-	"github.com/btcsuitereleases/btcutil"
-	"github.com/btcsuitereleases/btcutil/hdkeychain"
-	"github.com/btcsuitereleases/btcwallet/internal/zero"
-	"github.com/btcsuitereleases/btcwallet/waddrmgr"
-	"github.com/btcsuitereleases/btcwallet/walletdb"
+	"github.com/btcsuite/btcd/txscript"
+	"github.com/btcsuite/btcutil"
+	"github.com/btcsuite/btcutil/hdkeychain"
+	"github.com/btcsuite/btcwallet/internal/zero"
+	"github.com/btcsuite/btcwallet/waddrmgr"
+	"github.com/btcsuite/btcwallet/walletdb"
 )
 
 const (
