@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 Conformal Systems LLC <info@conformal.com>
+ * Copyright (c) 2014 The btcsuite developers
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -64,6 +64,8 @@ func TestErrorCodeStringer(t *testing.T) {
 		{vp.ErrTxSigning, "ErrTxSigning"},
 		{vp.ErrInvalidScriptHash, "ErrInvalidScriptHash"},
 		{vp.ErrWithdrawFromUnusedAddr, "ErrWithdrawFromUnusedAddr"},
+		{vp.ErrWithdrawalTxStorage, "ErrWithdrawalTxStorage"},
+		{vp.ErrWithdrawalStorage, "ErrWithdrawalStorage"},
 		{0xffff, "Unknown ErrorCode (65535)"},
 	}
 

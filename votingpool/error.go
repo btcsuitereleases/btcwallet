@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 Conformal Systems LLC <info@conformal.com>
+ * Copyright (c) 2014 The btcsuite developers
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -147,6 +147,14 @@ const (
 	// invalid ID.
 	ErrSeriesIDInvalid
 
+	// ErrWithdrawalTxStorage indicates an error when storing withdrawal
+	// transactions.
+	ErrWithdrawalTxStorage
+
+	// ErrWithdrawalStorage indicates an error occurred when serializing or
+	// deserializing withdrawal information.
+	ErrWithdrawalStorage
+
 	// lastErr is used for testing, making it possible to iterate over
 	// the error codes in order to check that they all have proper
 	// translations in errorCodeStrings.
@@ -187,6 +195,8 @@ var errorCodeStrings = map[ErrorCode]string{
 	ErrTxSigning:                 "ErrTxSigning",
 	ErrInvalidScriptHash:         "ErrInvalidScriptHash",
 	ErrWithdrawFromUnusedAddr:    "ErrWithdrawFromUnusedAddr",
+	ErrWithdrawalTxStorage:       "ErrWithdrawalTxStorage",
+	ErrWithdrawalStorage:         "ErrWithdrawalStorage",
 }
 
 // String returns the ErrorCode as a human-readable name.

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 Conformal Systems LLC <info@conformal.com>
+ * Copyright (c) 2014 The btcsuite developers
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -131,6 +131,10 @@ const (
 	// ErrWrongNet indicates that the private key to be imported is not for the
 	// the same network the account manager is configured for.
 	ErrWrongNet
+
+	// ErrCallBackBreak is used to break from a callback function passed
+	// down to the manager.
+	ErrCallBackBreak
 )
 
 // Map of ErrorCode values back to their constant names for pretty printing.
@@ -154,6 +158,7 @@ var errorCodeStrings = map[ErrorCode]string{
 	ErrTooManyAddresses:  "ErrTooManyAddresses",
 	ErrWrongPassphrase:   "ErrWrongPassphrase",
 	ErrWrongNet:          "ErrWrongNet",
+	ErrCallBackBreak:     "ErrCallBackBreak",
 }
 
 // String returns the ErrorCode as a human-readable name.
@@ -194,4 +199,15 @@ func (e ManagerError) Error() string {
 // managerError creates a ManagerError given a set of arguments.
 func managerError(c ErrorCode, desc string, err error) ManagerError {
 	return ManagerError{ErrorCode: c, Description: desc, Err: err}
+}
+
+// Break is a global err used to signal a break from the callback
+// function by returning an error with the code ErrCallBackBreak
+var Break = managerError(ErrCallBackBreak, "callback break", nil)
+
+// IsError returns whether the error is a MangerError with a matching error
+// code.
+func IsError(err error, code ErrorCode) bool {
+	e, ok := err.(ManagerError)
+	return ok && e.ErrorCode == code
 }

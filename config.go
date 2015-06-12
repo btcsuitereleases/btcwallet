@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2014 Conformal Systems LLC <info@conformal.com>
+ * Copyright (c) 2013, 2014 The btcsuite developers
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -25,7 +25,7 @@ import (
 	"strings"
 
 	"github.com/btcsuite/btcutil"
-	"github.com/btcsuite/btcwallet/legacy/keystore"
+	"github.com/btcsuite/btcwallet/internal/legacy/keystore"
 	flags "github.com/btcsuite/go-flags"
 )
 

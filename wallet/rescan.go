@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2014 Conformal Systems LLC <info@conformal.com>
+ * Copyright (c) 2013, 2014 The btcsuite developers
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -20,8 +20,8 @@ import (
 	"github.com/btcsuite/btcd/wire"
 	"github.com/btcsuite/btcutil"
 	"github.com/btcsuite/btcwallet/chain"
-	"github.com/btcsuite/btcwallet/txstore"
 	"github.com/btcsuite/btcwallet/waddrmgr"
+	"github.com/btcsuite/btcwallet/wtxmgr"
 )
 
 // RescanProgressMsg reports the current progress made by a rescan for a
@@ -252,10 +252,10 @@ func (w *Wallet) rescanRPCHandler() {
 // a wallet.  This is intended to be used to sync a wallet back up to the
 // current best block in the main chain, and is considered an initial sync
 // rescan.
-func (w *Wallet) Rescan(addrs []btcutil.Address, unspent []txstore.Credit) error {
+func (w *Wallet) Rescan(addrs []btcutil.Address, unspent []wtxmgr.Credit) error {
 	outpoints := make([]*wire.OutPoint, len(unspent))
 	for i, output := range unspent {
-		outpoints[i] = output.OutPoint()
+		outpoints[i] = &output.OutPoint
 	}
 
 	job := &RescanJob{

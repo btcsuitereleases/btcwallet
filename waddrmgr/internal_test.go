@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 Conformal Systems LLC <info@conformal.com>
+ * Copyright (c) 2014 The btcsuite developers
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -45,7 +45,7 @@ func TstRunWithReplacedNewSecretKey(callback func()) {
 	defer func() {
 		newSecretKey = orig
 	}()
-	newSecretKey = func(passphrase *[]byte, config *Options) (*snacl.SecretKey, error) {
+	newSecretKey = func(passphrase *[]byte, config *ScryptOptions) (*snacl.SecretKey, error) {
 		return nil, snacl.ErrDecryptFailed
 	}
 	callback()
@@ -91,3 +91,6 @@ func TstRunWithFailingCryptoKeyPriv(m *Manager, callback func()) {
 	m.cryptoKeyPriv = &failingCryptoKey{}
 	callback()
 }
+
+// TstDefaultAccountName is the constant defaultAccountName exported for tests.
+const TstDefaultAccountName = defaultAccountName

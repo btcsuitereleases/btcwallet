@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 Conformal Systems LLC <info@conformal.com>
+ * Copyright (c) 2014-2015 The btcsuite developers
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -30,8 +30,7 @@ import (
 	"github.com/btcsuite/btcd/wire"
 	"github.com/btcsuite/btcutil"
 	"github.com/btcsuite/btcutil/hdkeychain"
-	"github.com/btcsuite/btcwallet/legacy/keystore"
-	"github.com/btcsuite/btcwallet/txstore"
+	"github.com/btcsuite/btcwallet/internal/legacy/keystore"
 	"github.com/btcsuite/btcwallet/waddrmgr"
 	"github.com/btcsuite/btcwallet/wallet"
 	"github.com/btcsuite/btcwallet/walletdb"
@@ -39,9 +38,10 @@ import (
 	"github.com/btcsuite/golangcrypto/ssh/terminal"
 )
 
+// Namespace keys
 var (
-	// waddrmgrNamespaceKey is the namespace key for the waddrmgr package.
 	waddrmgrNamespaceKey = []byte("waddrmgr")
+	wtxmgrNamespaceKey   = []byte("wtxmgr")
 )
 
 // networkDir returns the directory name of a network directory to hold wallet
@@ -558,9 +558,30 @@ func createSimulationWallet(cfg *config) error {
 	return nil
 }
 
-// openDb opens and returns a *walletdb.DB (boltdb here) given the
-// directory and dbname
-func openDb(directory string, dbname string) (*walletdb.DB, error) {
+// checkCreateDir checks that the path exists and is a directory.
+// If path does not exist, it is created.
+func checkCreateDir(path string) error {
+	if fi, err := os.Stat(path); err != nil {
+		if os.IsNotExist(err) {
+			// Attempt data directory creation
+			if err = os.MkdirAll(path, 0700); err != nil {
+				return fmt.Errorf("cannot create directory: %s", err)
+			}
+		} else {
+			return fmt.Errorf("error checking directory: %s", err)
+		}
+	} else {
+		if !fi.IsDir() {
+			return fmt.Errorf("path '%s' is not a directory", path)
+		}
+	}
+
+	return nil
+}
+
+// openDb opens and returns a walletdb.DB (boltdb here) given the directory and
+// dbname
+func openDb(directory string, dbname string) (walletdb.DB, error) {
 	dbPath := filepath.Join(directory, dbname)
 
 	// Ensure that the network directory exists.
@@ -569,82 +590,34 @@ func openDb(directory string, dbname string) (*walletdb.DB, error) {
 	}
 
 	// Open the database using the boltdb backend.
-	db, err := walletdb.Open("bdb", dbPath)
-	if err != nil {
-		return nil, err
-	}
-	return &db, nil
-}
-
-// openWaddrmgr returns an address manager given a database, namespace,
-// public pass and the chain params
-// It prompts for seed and private passphrase required in case of upgrades
-func openWaddrmgr(db *walletdb.DB, namespaceKey []byte, pass string,
-	chainParams *chaincfg.Params) (*waddrmgr.Manager, error) {
-
-	// Get the namespace for the address manager.
-	namespace, err := (*db).Namespace(namespaceKey)
-	if err != nil {
-		return nil, err
-	}
-
-	config := &waddrmgr.Options{
-		ObtainSeed:        promptSeed,
-		ObtainPrivatePass: promptPrivPassPhrase,
-	}
-	// Open address manager and transaction store.
-	//	var txs *txstore.Store
-	return waddrmgr.Open(namespace, []byte(pass),
-		chainParams, config)
+	return walletdb.Open("bdb", dbPath)
 }
 
 // openWallet returns a wallet. The function handles opening an existing wallet
 // database, the address manager and the transaction store and uses the values
 // to open a wallet.Wallet
-func openWallet() (*wallet.Wallet, error) {
+func openWallet() (*wallet.Wallet, walletdb.DB, error) {
 	netdir := networkDir(cfg.DataDir, activeNet.Params)
 
 	db, err := openDb(netdir, walletDbName)
 	if err != nil {
-		log.Errorf("%v", err)
-		return nil, err
+		log.Errorf("Failed to open database: %v", err)
+		return nil, nil, err
 	}
 
-	var txs *txstore.Store
-	mgr, err := openWaddrmgr(db, waddrmgrNamespaceKey, cfg.WalletPass,
-		activeNet.Params)
-	if err == nil {
-		txs, err = txstore.OpenDir(netdir)
-	}
+	addrMgrNS, err := db.Namespace(waddrmgrNamespaceKey)
 	if err != nil {
-		// Special case: if the address manager was successfully read
-		// (mgr != nil) but the transaction store was not, create a
-		// new txstore and write it out to disk.  Write an unsynced
-		// manager back to disk so on future opens, the empty txstore
-		// is not considered fully synced.
-		if mgr == nil {
-			log.Errorf("%v", err)
-			return nil, err
-		}
-
-		txs = txstore.New(netdir)
-		txs.MarkDirty()
-		err = txs.WriteIfDirty()
-		if err != nil {
-			log.Errorf("%v", err)
-			return nil, err
-		}
-		mgr.SetSyncedTo(nil)
+		return nil, nil, err
 	}
-
-	walletConfig := &wallet.Config{
-		Db:          db,
-		TxStore:     txs,
-		Waddrmgr:    mgr,
-		ChainParams: activeNet.Params,
+	txMgrNS, err := db.Namespace(wtxmgrNamespaceKey)
+	if err != nil {
+		return nil, nil, err
 	}
-	log.Infof("Opened wallet files") // TODO: log balance? last sync height?
-	w := wallet.Open(walletConfig)
-
-	return w, nil
+	cbs := &waddrmgr.OpenCallbacks{
+		ObtainSeed:        promptSeed,
+		ObtainPrivatePass: promptPrivPassPhrase,
+	}
+	w, err := wallet.Open([]byte(cfg.WalletPass), activeNet.Params, db,
+		addrMgrNS, txMgrNS, cbs)
+	return w, db, err
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 Conformal Systems LLC <info@conformal.com>
+ * Copyright (c) 2014 The btcsuite developers
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -96,7 +96,8 @@ func (vp *Pool) TstDecryptExtendedKey(keyType waddrmgr.CryptoKeyType, encrypted 
 	return vp.decryptExtendedKey(keyType, encrypted)
 }
 
-// TstGetMsgTx returns the withdrawal transaction with the given ntxid.
+// TstGetMsgTx returns a copy of the withdrawal transaction with the given
+// ntxid.
 func (s *WithdrawalStatus) TstGetMsgTx(ntxid Ntxid) *wire.MsgTx {
-	return s.transactions[ntxid].MsgTx
+	return s.transactions[ntxid].MsgTx.Copy()
 }

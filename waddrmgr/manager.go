@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 Conformal Systems LLC <info@conformal.com>
+ * Copyright (c) 2014 The btcsuite developers
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -57,8 +57,14 @@ const (
 	// DefaultAccountNum is the number of the default account.
 	DefaultAccountNum = 0
 
-	// DefaultAccountName is the name of the default account.
-	DefaultAccountName = "default"
+	// defaultAccountName is the initial name of the default account.  Note
+	// that the default account may be renamed and is not a reserved name,
+	// so the default account might not be named "default" and non-default
+	// accounts may be named "default".
+	//
+	// Account numbers never change, so the DefaultAccountNum should be used
+	// to refer to (and only to) the default account.
+	defaultAccountName = "default"
 
 	// The hierarchy described by BIP0043 is:
 	//  m/<purpose>'/*
@@ -88,21 +94,29 @@ const (
 	saltSize = 32
 )
 
-var (
-	// reservedAccountNames is a set of account names reserved for internal
-	// purposes
-	reservedAccountNames = map[string]struct{}{
-		"*":                     struct{}{},
-		DefaultAccountName:      struct{}{},
-		ImportedAddrAccountName: struct{}{},
-	}
-)
+// isReservedAccountName returns true if the account name is reserved.  Reserved
+// accounts may never be renamed, and other accounts may not be renamed to a
+// reserved name.
+func isReservedAccountName(name string) bool {
+	return name == ImportedAddrAccountName
+}
 
-// Options is used to hold the optional parameters passed to Create or Load.
-type Options struct {
-	ScryptN int
-	ScryptR int
-	ScryptP int
+// isReservedAccountNum returns true if the account number is reserved.
+// Reserved accounts may not be renamed.
+func isReservedAccountNum(acct uint32) bool {
+	return acct == ImportedAddrAccount
+}
+
+// ScryptOptions is used to hold the scrypt parameters needed when deriving new
+// passphrase keys.
+type ScryptOptions struct {
+	N, R, P int
+}
+
+// OpenCallbacks houses caller-provided callbacks that may be called when
+// opening an existing manager.  The open blocks on the execution of these
+// functions.
+type OpenCallbacks struct {
 	// ObtainSeed is a callback function that is potentially invoked during
 	// upgrades.  It is intended to be used to request the wallet seed
 	// from the user (or any other mechanism the caller deems fit).
@@ -114,12 +128,12 @@ type Options struct {
 	ObtainPrivatePass ObtainUserInputFunc
 }
 
-// defaultConfig is an instance of the Options struct initialized with default
+// DefaultConfig is an instance of the Options struct initialized with default
 // configuration options.
-var defaultConfig = &Options{
-	ScryptN: 262144, // 2^18
-	ScryptR: 8,
-	ScryptP: 1,
+var DefaultScryptOptions = ScryptOptions{
+	N: 262144, // 2^18
+	R: 8,
+	P: 1,
 }
 
 // addrKey is used to uniquely identify an address even when those addresses
@@ -161,9 +175,8 @@ type unlockDeriveInfo struct {
 }
 
 // defaultNewSecretKey returns a new secret key.  See newSecretKey.
-func defaultNewSecretKey(passphrase *[]byte, config *Options) (*snacl.SecretKey, error) {
-	return snacl.NewSecretKey(passphrase, config.ScryptN, config.ScryptR,
-		config.ScryptP)
+func defaultNewSecretKey(passphrase *[]byte, config *ScryptOptions) (*snacl.SecretKey, error) {
+	return snacl.NewSecretKey(passphrase, config.N, config.R, config.P)
 }
 
 // newSecretKey is used as a way to replace the new secret key generation
@@ -285,9 +298,6 @@ type Manager struct {
 	// order to encrypt it.
 	deriveOnUnlock []*unlockDeriveInfo
 
-	// config holds overridable options, such as scrypt parameters.
-	config *Options
-
 	// privPassphraseSalt and hashedPrivPassphrase allow for the secure
 	// detection of a correct passphrase on manager unlock when the
 	// manager is already unlocked.  The hash is zeroed each lock.
@@ -374,7 +384,7 @@ func (m *Manager) Close() error {
 // The passed derivedKey is zeroed after the new address is created.
 //
 // This function MUST be called with the manager lock held for writes.
-func (m *Manager) keyToManaged(derivedKey *hdkeychain.ExtendedKey, account, branch, index uint32, used bool) (ManagedAddress, error) {
+func (m *Manager) keyToManaged(derivedKey *hdkeychain.ExtendedKey, account, branch, index uint32) (ManagedAddress, error) {
 	// Create a new managed address based on the public or private key
 	// depending on whether the passed key is private.  Also, zero the
 	// key after creating the managed address from it.
@@ -397,7 +407,6 @@ func (m *Manager) keyToManaged(derivedKey *hdkeychain.ExtendedKey, account, bran
 	if branch == internalBranch {
 		ma.internal = true
 	}
-	ma.used = used
 
 	return ma, nil
 }
@@ -512,7 +521,7 @@ func (m *Manager) loadAccountInfo(account uint32) (*accountInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	lastExtAddr, err := m.keyToManaged(lastExtKey, account, branch, index, false)
+	lastExtAddr, err := m.keyToManaged(lastExtKey, account, branch, index)
 	if err != nil {
 		return nil, err
 	}
@@ -527,7 +536,7 @@ func (m *Manager) loadAccountInfo(account uint32) (*accountInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	lastIntAddr, err := m.keyToManaged(lastIntKey, account, branch, index, false)
+	lastIntAddr, err := m.keyToManaged(lastIntKey, account, branch, index)
 	if err != nil {
 		return nil, err
 	}
@@ -563,7 +572,7 @@ func (m *Manager) chainAddressRowToManaged(row *dbChainAddressRow) (ManagedAddre
 		return nil, err
 	}
 
-	return m.keyToManaged(addressKey, row.account, row.branch, row.index, row.used)
+	return m.keyToManaged(addressKey, row.account, row.branch, row.index)
 }
 
 // importedAddressRowToManaged returns a new managed address based on imported
@@ -590,7 +599,6 @@ func (m *Manager) importedAddressRowToManaged(row *dbImportedAddressRow) (Manage
 	}
 	ma.privKeyEncrypted = row.encryptedPrivKey
 	ma.imported = true
-	ma.used = row.used
 
 	return ma, nil
 }
@@ -605,7 +613,7 @@ func (m *Manager) scriptAddressRowToManaged(row *dbScriptAddressRow) (ManagedAdd
 		return nil, managerError(ErrCrypto, str, err)
 	}
 
-	return newScriptAddress(m, row.account, scriptHash, row.encryptedScript, row.used)
+	return newScriptAddress(m, row.account, scriptHash, row.encryptedScript)
 }
 
 // rowInterfaceToManaged returns a new managed address based on the given
@@ -702,8 +710,11 @@ func (m *Manager) AddrAccount(address btcutil.Address) (uint32, error) {
 
 // ChangePassphrase changes either the public or private passphrase to the
 // provided value depending on the private flag.  In order to change the private
-// password, the address manager must not be watching-only.
-func (m *Manager) ChangePassphrase(oldPassphrase, newPassphrase []byte, private bool) error {
+// password, the address manager must not be watching-only.  The new passphrase
+// keys are derived using the scrypt parameters in the options, so changing the
+// passphrase may be used to bump the computational difficulty needed to brute
+// force the passphrase.
+func (m *Manager) ChangePassphrase(oldPassphrase, newPassphrase []byte, private bool, config *ScryptOptions) error {
 	// No private passphrase to change for a watching-only address manager.
 	if private && m.watchingOnly {
 		return managerError(ErrWatchingOnly, errWatchingOnly, nil)
@@ -739,7 +750,7 @@ func (m *Manager) ChangePassphrase(oldPassphrase, newPassphrase []byte, private 
 
 	// Generate a new master key from the passphrase which is used to secure
 	// the actual secret keys.
-	newMasterKey, err := newSecretKey(&newPassphrase, m.config)
+	newMasterKey, err := newSecretKey(&newPassphrase, config)
 	if err != nil {
 		str := "failed to create new master private key"
 		return managerError(ErrCrypto, str, err)
@@ -1173,7 +1184,7 @@ func (m *Manager) ImportScript(script []byte, bs *BlockStamp) (ManagedScriptAddr
 	// since it will be cleared on lock and the script the caller passed
 	// should not be cleared out from under the caller.
 	scriptAddr, err := newScriptAddress(m, ImportedAddrAccount, scriptHash,
-		encryptedScript, false)
+		encryptedScript)
 	if err != nil {
 		return nil, err
 	}
@@ -1360,15 +1371,26 @@ func (m *Manager) Unlock(passphrase []byte) error {
 	return nil
 }
 
-// MarkUsed updates the used flag for the provided address id.
-func (m *Manager) MarkUsed(addressID []byte) error {
+// fetchUsed returns true if the provided address id was flagged used.
+func (m *Manager) fetchUsed(addressID []byte) (bool, error) {
+	var used bool
+	err := m.namespace.View(func(tx walletdb.Tx) error {
+		used = fetchAddressUsed(tx, addressID)
+		return nil
+	})
+	return used, err
+}
+
+// MarkUsed updates the used flag for the provided address.
+func (m *Manager) MarkUsed(address btcutil.Address) error {
+	addressID := address.ScriptAddress()
 	err := m.namespace.Update(func(tx walletdb.Tx) error {
 		return markAddressUsed(tx, addressID)
 	})
 	if err != nil {
 		return maybeConvertDbError(err)
 	}
-	// 'used' flag has become stale so remove key from cache
+	// Clear caches which might have stale entries for used addresses
 	delete(m.addrs, addrKey(addressID))
 	return nil
 }
@@ -1580,7 +1602,11 @@ func (m *Manager) LastExternalAddress(account uint32) (ManagedAddress, error) {
 		return nil, err
 	}
 
-	return acctInfo.lastExternalAddr, nil
+	if acctInfo.nextExternalIndex > 0 {
+		return acctInfo.lastExternalAddr, nil
+	}
+
+	return nil, managerError(ErrAddressNotFound, "no previous external address", nil)
 }
 
 // LastInternalAddress returns the most recently requested chained internal
@@ -1608,16 +1634,16 @@ func (m *Manager) LastInternalAddress(account uint32) (ManagedAddress, error) {
 		return nil, err
 	}
 
-	return acctInfo.lastInternalAddr, nil
+	if acctInfo.nextInternalIndex > 0 {
+		return acctInfo.lastInternalAddr, nil
+	}
+
+	return nil, managerError(ErrAddressNotFound, "no previous internal address", nil)
 }
 
 // ValidateAccountName validates the given account name and returns an error, if any.
 func ValidateAccountName(name string) error {
-	if name == "" {
-		str := "invalid account name, cannot be blank"
-		return managerError(ErrInvalidAccount, str, nil)
-	}
-	if _, ok := reservedAccountNames[name]; ok {
+	if isReservedAccountName(name) {
 		str := "reserved account name"
 		return managerError(ErrInvalidAccount, str, nil)
 	}
@@ -1731,6 +1757,12 @@ func (m *Manager) RenameAccount(account uint32, name string) error {
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
 
+	// Ensure that a reserved account is not being renamed.
+	if isReservedAccountNum(account) {
+		str := "reserved account cannot be renamed"
+		return managerError(ErrInvalidAccount, str, nil)
+	}
+
 	// Check that account with the new name does not exist
 	_, err := m.lookupAccount(name)
 	if err == nil {
@@ -1789,22 +1821,14 @@ func (m *Manager) AccountName(account uint32) (string, error) {
 	return acctName, nil
 }
 
-// AllAccounts returns a slice of all the accounts stored in the manager.
-func (m *Manager) AllAccounts() ([]uint32, error) {
+// ForEachAccount calls the given function with each account stored in the
+// manager, breaking early on error.
+func (m *Manager) ForEachAccount(fn func(account uint32) error) error {
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
-
-	var accounts []uint32
-	err := m.namespace.View(func(tx walletdb.Tx) error {
-		var err error
-		accounts, err = fetchAllAccounts(tx)
-		return err
+	return m.namespace.View(func(tx walletdb.Tx) error {
+		return forEachAccount(tx, fn)
 	})
-	if err != nil {
-		return nil, err
-	}
-
-	return accounts, nil
 }
 
 // LastAccount returns the last account stored in the manager.
@@ -1821,73 +1845,58 @@ func (m *Manager) LastAccount() (uint32, error) {
 	return account, err
 }
 
-// AllAccountAddresses returns a slice of addresses of an account stored in the manager.
-func (m *Manager) AllAccountAddresses(account uint32) ([]ManagedAddress, error) {
+// ForEachAccountAddress calls the given function with each address of
+// the given account stored in the manager, breaking early on error.
+func (m *Manager) ForEachAccountAddress(account uint32, fn func(maddr ManagedAddress) error) error {
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
 
-	// Load the raw address information from the database.
-	var rowInterfaces []interface{}
-	err := m.namespace.View(func(tx walletdb.Tx) error {
-		var err error
-		rowInterfaces, err = fetchAccountAddresses(tx, account)
-		return err
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	addrs := make([]ManagedAddress, 0, len(rowInterfaces))
-	for _, rowInterface := range rowInterfaces {
-		// Create a new managed address for the specific type of address
-		// based on type.
+	addrFn := func(rowInterface interface{}) error {
 		managedAddr, err := m.rowInterfaceToManaged(rowInterface)
 		if err != nil {
-			return nil, err
+			return err
 		}
-
-		addrs = append(addrs, managedAddr)
+		return fn(managedAddr)
 	}
 
-	return addrs, nil
+	err := m.namespace.View(func(tx walletdb.Tx) error {
+		return forEachAccountAddress(tx, account, addrFn)
+	})
+	if err != nil {
+		return maybeConvertDbError(err)
+	}
+	return nil
 }
 
-// ActiveAccountAddresses returns a slice of active addresses of an account
-// stored in the manager.
+// ForEachActiveAccountAddress calls the given function with each active
+// address of the given account stored in the manager, breaking early on
+// error.
 // TODO(tuxcanfly): actually return only active addresses
-func (m *Manager) ActiveAccountAddresses(account uint32) ([]ManagedAddress, error) {
-	return m.AllAccountAddresses(account)
+func (m *Manager) ForEachActiveAccountAddress(account uint32, fn func(maddr ManagedAddress) error) error {
+	return m.ForEachAccountAddress(account, fn)
 }
 
-// AllActiveAddresses returns a slice of all addresses stored in the manager.
-func (m *Manager) AllActiveAddresses() ([]btcutil.Address, error) {
+// ForEachActiveAddress calls the given function with each active address
+// stored in the manager, breaking early on error.
+func (m *Manager) ForEachActiveAddress(fn func(addr btcutil.Address) error) error {
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
 
-	// Load the raw address information from the database.
-	var rowInterfaces []interface{}
-	err := m.namespace.View(func(tx walletdb.Tx) error {
-		var err error
-		rowInterfaces, err = fetchAllAddresses(tx)
-		return err
-	})
-	if err != nil {
-		return nil, maybeConvertDbError(err)
-	}
-
-	addrs := make([]btcutil.Address, 0, len(rowInterfaces))
-	for _, rowInterface := range rowInterfaces {
-		// Create a new managed address for the specific type of address
-		// based on type.
+	addrFn := func(rowInterface interface{}) error {
 		managedAddr, err := m.rowInterfaceToManaged(rowInterface)
 		if err != nil {
-			return nil, err
+			return err
 		}
-
-		addrs = append(addrs, managedAddr.Address())
+		return fn(managedAddr.Address())
 	}
 
-	return addrs, nil
+	err := m.namespace.View(func(tx walletdb.Tx) error {
+		return forEachActiveAddress(tx, addrFn)
+	})
+	if err != nil {
+		return maybeConvertDbError(err)
+	}
+	return nil
 }
 
 // selectCryptoKey selects the appropriate crypto key based on the key type. An
@@ -1962,7 +1971,7 @@ func newManager(namespace walletdb.Namespace, chainParams *chaincfg.Params,
 	masterKeyPub *snacl.SecretKey, masterKeyPriv *snacl.SecretKey,
 	cryptoKeyPub EncryptorDecryptor, cryptoKeyPrivEncrypted,
 	cryptoKeyScriptEncrypted []byte, syncInfo *syncState,
-	config *Options, privPassphraseSalt [saltSize]byte) *Manager {
+	privPassphraseSalt [saltSize]byte) *Manager {
 
 	return &Manager{
 		namespace:                namespace,
@@ -1978,7 +1987,6 @@ func newManager(namespace walletdb.Namespace, chainParams *chaincfg.Params,
 		cryptoKeyPriv:            &cryptoKey{},
 		cryptoKeyScriptEncrypted: cryptoKeyScriptEncrypted,
 		cryptoKeyScript:          &cryptoKey{},
-		config:                   config,
 		privPassphraseSalt:       privPassphraseSalt,
 	}
 }
@@ -2060,7 +2068,7 @@ func checkBranchKeys(acctKey *hdkeychain.ExtendedKey) error {
 // loadManager returns a new address manager that results from loading it from
 // the passed opened database.  The public passphrase is required to decrypt the
 // public keys.
-func loadManager(namespace walletdb.Namespace, pubPassphrase []byte, chainParams *chaincfg.Params, config *Options) (*Manager, error) {
+func loadManager(namespace walletdb.Namespace, pubPassphrase []byte, chainParams *chaincfg.Params) (*Manager, error) {
 	// Perform all database lookups in a read-only view.
 	var watchingOnly bool
 	var masterKeyPubParams, masterKeyPrivParams []byte
@@ -2156,7 +2164,7 @@ func loadManager(namespace walletdb.Namespace, pubPassphrase []byte, chainParams
 	// call to new with the values loaded from the database.
 	mgr := newManager(namespace, chainParams, &masterKeyPub, &masterKeyPriv,
 		cryptoKeyPub, cryptoKeyPrivEnc, cryptoKeyScriptEnc, syncInfo,
-		config, privPassphraseSalt)
+		privPassphraseSalt)
 	mgr.watchingOnly = watchingOnly
 	return mgr, nil
 }
@@ -2171,7 +2179,7 @@ func loadManager(namespace walletdb.Namespace, pubPassphrase []byte, chainParams
 //
 // A ManagerError with an error code of ErrNoExist will be returned if the
 // passed manager does not exist in the specified namespace.
-func Open(namespace walletdb.Namespace, pubPassphrase []byte, chainParams *chaincfg.Params, config *Options) (*Manager, error) {
+func Open(namespace walletdb.Namespace, pubPassphrase []byte, chainParams *chaincfg.Params, cbs *OpenCallbacks) (*Manager, error) {
 	// Return an error if the manager has NOT already been created in the
 	// given database namespace.
 	exists, err := managerExists(namespace)
@@ -2184,15 +2192,11 @@ func Open(namespace walletdb.Namespace, pubPassphrase []byte, chainParams *chain
 	}
 
 	// Upgrade the manager to the latest version as needed.
-	if err := upgradeManager(namespace, pubPassphrase, config); err != nil {
+	if err := upgradeManager(namespace, pubPassphrase, chainParams, cbs); err != nil {
 		return nil, err
 	}
 
-	if config == nil {
-		config = defaultConfig
-	}
-
-	return loadManager(namespace, pubPassphrase, chainParams, config)
+	return loadManager(namespace, pubPassphrase, chainParams)
 }
 
 // Create returns a new locked address manager in the given namespace.  The
@@ -2212,7 +2216,7 @@ func Open(namespace walletdb.Namespace, pubPassphrase []byte, chainParams *chain
 //
 // A ManagerError with an error code of ErrAlreadyExists will be returned the
 // address manager already exists in the specified namespace.
-func Create(namespace walletdb.Namespace, seed, pubPassphrase, privPassphrase []byte, chainParams *chaincfg.Params, config *Options) (*Manager, error) {
+func Create(namespace walletdb.Namespace, seed, pubPassphrase, privPassphrase []byte, chainParams *chaincfg.Params, config *ScryptOptions) (*Manager, error) {
 	// Return an error if the manager has already been created in the given
 	// database namespace.
 	exists, err := managerExists(namespace)
@@ -2229,7 +2233,7 @@ func Create(namespace walletdb.Namespace, seed, pubPassphrase, privPassphrase []
 	}
 
 	if config == nil {
-		config = defaultConfig
+		config = &DefaultScryptOptions
 	}
 
 	// Generate the BIP0044 HD key structure to ensure the provided seed
@@ -2436,13 +2440,8 @@ func Create(namespace walletdb.Namespace, seed, pubPassphrase, privPassphrase []
 
 		// Save the information for the default account to the database.
 		err = putAccountInfo(tx, DefaultAccountNum, acctPubEnc,
-			acctPrivEnc, 0, 0, DefaultAccountName)
-		if err != nil {
-			return err
-		}
-
-		// Save "" alias for default account name for backward compat
-		return putAccountNameIndex(tx, DefaultAccountNum, "")
+			acctPrivEnc, 0, 0, defaultAccountName)
+		return err
 	})
 	if err != nil {
 		return nil, maybeConvertDbError(err)
@@ -2456,5 +2455,5 @@ func Create(namespace walletdb.Namespace, seed, pubPassphrase, privPassphrase []
 	coinTypeKeyPriv.Zero()
 	return newManager(namespace, chainParams, masterKeyPub, masterKeyPriv,
 		cryptoKeyPub, cryptoKeyPrivEnc, cryptoKeyScriptEnc, syncInfo,
-		config, privPassphraseSalt), nil
+		privPassphraseSalt), nil
 }

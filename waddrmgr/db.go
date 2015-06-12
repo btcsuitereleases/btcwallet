@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 Conformal Systems LLC <info@conformal.com>
+ * Copyright (c) 2014 The btcsuite developers
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -17,6 +17,7 @@
 package waddrmgr
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"time"
@@ -30,7 +31,7 @@ import (
 
 const (
 	// LatestMgrVersion is the most recent manager version.
-	LatestMgrVersion = 3
+	LatestMgrVersion = 4
 )
 
 var (
@@ -113,7 +114,6 @@ type dbAddressRow struct {
 	account    uint32
 	addTime    uint64
 	syncStatus syncStatus
-	used       bool
 	rawData    []byte // Varies based on address type field.
 }
 
@@ -577,23 +577,18 @@ func serializeBIP0044AccountRow(encryptedPubKey,
 	return rawData
 }
 
-// fetchAllAccounts loads information about all accounts from the database.
-// The returned value is a slice of account numbers which can be used to load
-// the respective account rows.
-// TODO(tuxcanfly): Switch over to an iterator to support the maximum of 2^31-2 accounts
-func fetchAllAccounts(tx walletdb.Tx) ([]uint32, error) {
+// forEachAccount calls the given function with each account stored in
+// the manager, breaking early on error.
+func forEachAccount(tx walletdb.Tx, fn func(account uint32) error) error {
 	bucket := tx.RootBucket().Bucket(acctBucketName)
 
-	var accounts []uint32
-	err := bucket.ForEach(func(k, v []byte) error {
+	return bucket.ForEach(func(k, v []byte) error {
 		// Skip buckets.
 		if v == nil {
 			return nil
 		}
-		accounts = append(accounts, binary.LittleEndian.Uint32(k))
-		return nil
+		return fn(binary.LittleEndian.Uint32(k))
 	})
-	return accounts, err
 }
 
 // fetchLastAccount retreives the last account from the database.
@@ -987,17 +982,6 @@ func serializeScriptAddress(encryptedHash, encryptedScript []byte) []byte {
 	return rawData
 }
 
-// fetchAddressUsed returns true if the provided address hash was flagged as used.
-func fetchAddressUsed(tx walletdb.Tx, addrHash []byte) bool {
-	bucket := tx.RootBucket().Bucket(usedAddrBucketName)
-
-	val := bucket.Get(addrHash[:])
-	if val != nil {
-		return true
-	}
-	return false
-}
-
 // fetchAddressByHash loads address information for the provided address hash
 // from the database.  The returned value is one of the address rows for the
 // specific address type.  The caller should use type assertions to ascertain
@@ -1016,7 +1000,6 @@ func fetchAddressByHash(tx walletdb.Tx, addrHash []byte) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	row.used = fetchAddressUsed(tx, addrHash[:])
 
 	switch row.addrType {
 	case adtChain:
@@ -1029,6 +1012,14 @@ func fetchAddressByHash(tx walletdb.Tx, addrHash []byte) (interface{}, error) {
 
 	str := fmt.Sprintf("unsupported address type '%d'", row.addrType)
 	return nil, managerError(ErrDatabase, str, nil)
+}
+
+// fetchAddressUsed returns true if the provided address id was flagged as used.
+func fetchAddressUsed(tx walletdb.Tx, addressID []byte) bool {
+	bucket := tx.RootBucket().Bucket(usedAddrBucketName)
+
+	addrHash := fastsha256.Sum256(addressID)
+	return bucket.Get(addrHash[:]) != nil
 }
 
 // markAddressUsed flags the provided address id as used in the database.
@@ -1191,19 +1182,17 @@ func fetchAddrAccount(tx walletdb.Tx, addressID []byte) (uint32, error) {
 	return binary.LittleEndian.Uint32(val), nil
 }
 
-// fetchAccountAddresses loads information about addresses of an account from the database.
-// The returned value is a slice address rows for each specific address type.
-// The caller should use type assertions to ascertain the types.
-func fetchAccountAddresses(tx walletdb.Tx, account uint32) ([]interface{}, error) {
+// forEachAccountAddress calls the given function with each address of
+// the given account stored in the manager, breaking early on error.
+func forEachAccountAddress(tx walletdb.Tx, account uint32, fn func(rowInterface interface{}) error) error {
 	bucket := tx.RootBucket().Bucket(addrAcctIdxBucketName).
 		Bucket(uint32ToBytes(account))
 	// if index bucket is missing the account, there hasn't been any address
 	// entries yet
 	if bucket == nil {
-		return nil, nil
+		return nil
 	}
 
-	var addrs []interface{}
 	err := bucket.ForEach(func(k, v []byte) error {
 		// Skip buckets.
 		if v == nil {
@@ -1220,24 +1209,19 @@ func fetchAccountAddresses(tx walletdb.Tx, account uint32) ([]interface{}, error
 			return err
 		}
 
-		addrs = append(addrs, addrRow)
-		return nil
+		return fn(addrRow)
 	})
 	if err != nil {
-		return nil, maybeConvertDbError(err)
+		return maybeConvertDbError(err)
 	}
-
-	return addrs, nil
+	return nil
 }
 
-// fetchAllAddresses loads information about all addresses from the database.
-// The returned value is a slice of address rows for each specific address type.
-// The caller should use type assertions to ascertain the types.
-// TODO(tuxcanfly): Switch over to an iterator to support the maximum of 2^62 - 2^32 - 2^31 + 2 addrs
-func fetchAllAddresses(tx walletdb.Tx) ([]interface{}, error) {
+// forEachActiveAddress calls the given function with each active address
+// stored in the manager, breaking early on error.
+func forEachActiveAddress(tx walletdb.Tx, fn func(rowInterface interface{}) error) error {
 	bucket := tx.RootBucket().Bucket(addrBucketName)
 
-	var addrs []interface{}
 	err := bucket.ForEach(func(k, v []byte) error {
 		// Skip buckets.
 		if v == nil {
@@ -1257,14 +1241,12 @@ func fetchAllAddresses(tx walletdb.Tx) ([]interface{}, error) {
 			return err
 		}
 
-		addrs = append(addrs, addrRow)
-		return nil
+		return fn(addrRow)
 	})
 	if err != nil {
-		return nil, maybeConvertDbError(err)
+		return maybeConvertDbError(err)
 	}
-
-	return addrs, nil
+	return nil
 }
 
 // deletePrivateKeys removes all private key material from the database.
@@ -1666,7 +1648,7 @@ func upgradeToVersion2(namespace walletdb.Namespace) error {
 
 // upgradeManager upgrades the data in the provided manager namespace to newer
 // versions as neeeded.
-func upgradeManager(namespace walletdb.Namespace, pubPassPhrase []byte, config *Options) error {
+func upgradeManager(namespace walletdb.Namespace, pubPassPhrase []byte, chainParams *chaincfg.Params, cbs *OpenCallbacks) error {
 	var version uint32
 	err := namespace.View(func(tx walletdb.Tx) error {
 		var err error
@@ -1719,26 +1701,35 @@ func upgradeManager(namespace walletdb.Namespace, pubPassPhrase []byte, config *
 	}
 
 	if version < 3 {
-		if config.ObtainSeed == nil || config.ObtainPrivatePass == nil {
+		if cbs == nil || cbs.ObtainSeed == nil || cbs.ObtainPrivatePass == nil {
 			str := "failed to obtain seed and private passphrase required for upgrade"
 			return managerError(ErrDatabase, str, err)
 		}
 
-		seed, err := config.ObtainSeed()
+		seed, err := cbs.ObtainSeed()
 		if err != nil {
 			return err
 		}
-		privPassPhrase, err := config.ObtainPrivatePass()
+		privPassPhrase, err := cbs.ObtainPrivatePass()
 		if err != nil {
 			return err
 		}
 		// Upgrade from version 2 to 3.
-		if err := upgradeToVersion3(namespace, seed, privPassPhrase, pubPassPhrase); err != nil {
+		if err := upgradeToVersion3(namespace, seed, privPassPhrase, pubPassPhrase, chainParams); err != nil {
 			return err
 		}
 
 		// The manager is now at version 3.
 		version = 3
+	}
+
+	if version < 4 {
+		if err := upgradeToVersion4(namespace, pubPassPhrase); err != nil {
+			return err
+		}
+
+		// The manager is now at version 4.
+		version = 4
 	}
 
 	// Ensure the manager is upraded to the latest version.  This check is
@@ -1759,12 +1750,12 @@ func upgradeManager(namespace walletdb.Namespace, pubPassPhrase []byte, config *
 // * acctNameIdxBucketName
 // * acctIDIdxBucketName
 // * metaBucketName
-func upgradeToVersion3(namespace walletdb.Namespace, seed, privPassPhrase, pubPassPhrase []byte) error {
+func upgradeToVersion3(namespace walletdb.Namespace, seed, privPassPhrase, pubPassPhrase []byte, chainParams *chaincfg.Params) error {
 	err := namespace.Update(func(tx walletdb.Tx) error {
 		currentMgrVersion := uint32(3)
 		rootBucket := tx.RootBucket()
 
-		woMgr, err := loadManager(namespace, pubPassPhrase, &chaincfg.SimNetParams, nil)
+		woMgr, err := loadManager(namespace, pubPassPhrase, chainParams)
 		if err != nil {
 			return err
 		}
@@ -1783,7 +1774,7 @@ func upgradeToVersion3(namespace walletdb.Namespace, seed, privPassPhrase, pubPa
 		}
 
 		// Derive the cointype key according to BIP0044.
-		coinTypeKeyPriv, err := deriveCoinTypeKey(root, chaincfg.SimNetParams.HDCoinType)
+		coinTypeKeyPriv, err := deriveCoinTypeKey(root, chainParams.HDCoinType)
 		if err != nil {
 			str := "failed to derive cointype extended key"
 			return managerError(ErrKeyChain, str, err)
@@ -1838,10 +1829,10 @@ func upgradeToVersion3(namespace walletdb.Namespace, seed, privPassPhrase, pubPa
 		}
 
 		// Update default account indexes
-		if err := putAccountIDIndex(tx, DefaultAccountNum, DefaultAccountName); err != nil {
+		if err := putAccountIDIndex(tx, DefaultAccountNum, defaultAccountName); err != nil {
 			return err
 		}
-		if err := putAccountNameIndex(tx, DefaultAccountNum, DefaultAccountName); err != nil {
+		if err := putAccountNameIndex(tx, DefaultAccountNum, defaultAccountName); err != nil {
 			return err
 		}
 		// Update imported account indexes
@@ -1859,6 +1850,106 @@ func upgradeToVersion3(namespace walletdb.Namespace, seed, privPassPhrase, pubPa
 
 		// Save "" alias for default account name for backward compat
 		return putAccountNameIndex(tx, DefaultAccountNum, "")
+	})
+	if err != nil {
+		return maybeConvertDbError(err)
+	}
+	return nil
+}
+
+// upgradeToVersion4 upgrades the database from version 3 to version 4.  The
+// default account remains unchanged (even if it was modified by the user), but
+// the empty string alias to the default account is removed.
+func upgradeToVersion4(namespace walletdb.Namespace, pubPassPhrase []byte) error {
+	err := namespace.Update(func(tx walletdb.Tx) error {
+		// Write new manager version.
+		err := putManagerVersion(tx, 4)
+		if err != nil {
+			return err
+		}
+
+		// Lookup the old account info to determine the real name of the
+		// default account.  All other names will be removed.
+		acctInfoIface, err := fetchAccountInfo(tx, DefaultAccountNum)
+		if err != nil {
+			return err
+		}
+		acctInfo, ok := acctInfoIface.(*dbBIP0044AccountRow)
+		if !ok {
+			str := fmt.Sprintf("unsupported account type %T", acctInfoIface)
+			return managerError(ErrDatabase, str, nil)
+		}
+
+		var oldName string
+
+		// Delete any other names for the default account.
+		c := tx.RootBucket().Bucket(acctNameIdxBucketName).Cursor()
+		for k, v := c.First(); k != nil; k, v = c.Next() {
+			// Skip nested buckets.
+			if v == nil {
+				continue
+			}
+
+			// Skip account names which aren't for the default account.
+			account := binary.LittleEndian.Uint32(v)
+			if account != DefaultAccountNum {
+				continue
+			}
+
+			if !bytes.Equal(k[4:], []byte(acctInfo.name)) {
+				err := c.Delete()
+				if err != nil {
+					const str = "error deleting default account alias"
+					return managerError(ErrUpgrade, str, err)
+				}
+				oldName = string(k[4:])
+				break
+			}
+		}
+
+		// The account number to name index may map to the wrong name,
+		// so rewrite the entry with the true name from the account row
+		// instead of leaving it set to an incorrect alias.
+		err = putAccountIDIndex(tx, DefaultAccountNum, acctInfo.name)
+		if err != nil {
+			const str = "account number to name index could not be " +
+				"rewritten with actual account name"
+			return managerError(ErrUpgrade, str, err)
+		}
+
+		// Ensure that the true name for the default account maps
+		// forwards and backwards to the default account number.
+		name, err := fetchAccountName(tx, DefaultAccountNum)
+		if err != nil {
+			return err
+		}
+		if name != acctInfo.name {
+			const str = "account name index does not map default account number to correct name"
+			return managerError(ErrUpgrade, str, nil)
+		}
+		acct, err := fetchAccountByName(tx, acctInfo.name)
+		if err != nil {
+			return err
+		}
+		if acct != DefaultAccountNum {
+			const str = "default account not accessible under correct name"
+			return managerError(ErrUpgrade, str, nil)
+		}
+
+		// Ensure that looking up the default account by the old name
+		// cannot succeed.
+		_, err = fetchAccountByName(tx, oldName)
+		if err == nil {
+			const str = "default account exists under old name"
+			return managerError(ErrUpgrade, str, nil)
+		} else {
+			merr, ok := err.(ManagerError)
+			if !ok || merr.ErrorCode != ErrAccountNotFound {
+				return err
+			}
+		}
+
+		return nil
 	})
 	if err != nil {
 		return maybeConvertDbError(err)

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2014 Conformal Systems LLC <info@conformal.com>
+ * Copyright (c) 2013, 2014 The btcsuite developers
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -69,12 +69,12 @@ func walletMain() error {
 
 	// Load the wallet database.  It must have been created with the
 	// --create option already or this will return an appropriate error.
-	wallet, err := openWallet()
+	wallet, db, err := openWallet()
 	if err != nil {
 		log.Errorf("%v", err)
 		return err
 	}
-	defer wallet.Db().Close()
+	defer db.Close()
 
 	// Create and start HTTP server to serve wallet client connections.
 	// This will be updated with the wallet and chain server RPC client

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 Conformal Systems LLC <info@conformal.com>
+ * Copyright (c) 2014 The btcsuite developers
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -37,7 +37,7 @@ func TestStartWithdrawal(t *testing.T) {
 	def := vp.TstCreateSeriesDef(t, pool, 2, masters)
 	vp.TstCreateSeries(t, pool, []vp.TstSeriesDef{def})
 	// Create eligible inputs and the list of outputs we need to fulfil.
-	vp.TstCreateCreditsOnSeries(t, pool, def.SeriesID, []int64{5e6, 4e6}, store)
+	vp.TstCreateSeriesCreditsOnStore(t, pool, def.SeriesID, []int64{5e6, 4e6}, store)
 	address1 := "34eVkREKgvvGASZW7hkgE2uNc1yycntMK6"
 	address2 := "3PbExiaztsSYgh6zeMswC49hLUwhTQ86XG"
 	requests := []vp.OutputRequest{
@@ -96,6 +96,18 @@ func TestStartWithdrawal(t *testing.T) {
 			t.Fatal(err)
 		}
 	})
+
+	// Any subsequent StartWithdrawal() calls with the same parameters will
+	// return the previously stored WithdrawalStatus.
+	var status2 *vp.WithdrawalStatus
+	vp.TstRunWithManagerUnlocked(t, mgr, func() {
+		status2, err = pool.StartWithdrawal(0, requests, *startAddr, lastSeriesID, *changeStart,
+			store, currentBlock, dustThreshold)
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	vp.TstCheckWithdrawalStatusMatches(t, *status, *status2)
 }
 
 func checkWithdrawalOutputs(

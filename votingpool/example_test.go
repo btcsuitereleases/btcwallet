@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 Conformal Systems LLC <info@conformal.com>
+ * Copyright (c) 2014 The btcsuite developers
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -26,11 +26,11 @@ import (
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/btcsuite/btcutil"
-	"github.com/btcsuite/btcwallet/txstore"
 	"github.com/btcsuite/btcwallet/votingpool"
 	"github.com/btcsuite/btcwallet/waddrmgr"
 	"github.com/btcsuite/btcwallet/walletdb"
 	_ "github.com/btcsuite/btcwallet/walletdb/bdb"
+	"github.com/btcsuite/btcwallet/wtxmgr"
 )
 
 var (
@@ -57,7 +57,7 @@ func ExampleCreate() {
 
 	// Create the address manager.
 	seed := bytes.Repeat([]byte{0x2a, 0x64, 0xdf, 0x08}, 8)
-	var fastScrypt = &waddrmgr.Options{ScryptN: 16, ScryptR: 8, ScryptP: 1}
+	var fastScrypt = &waddrmgr.ScryptOptions{N: 16, R: 8, P: 1}
 	mgr, err := waddrmgr.Create(
 		mgrNamespace, seed, pubPassphrase, privPassphrase, &chaincfg.MainNetParams, fastScrypt)
 	if err != nil {
@@ -166,8 +166,7 @@ func Example_empowerSeries() {
 	//
 }
 
-// This example demonstrates how to empower a series by loading the private
-// key for one of the series' public keys.
+// This example demonstrates how to use the Pool.StartWithdrawal method.
 func Example_startWithdrawal() {
 	// Create the address manager and votingpool DB namespace. See the example
 	// for the Create() function for more info on how this is done.
@@ -271,7 +270,7 @@ func exampleCreateMgrAndDBNamespace() (*waddrmgr.Manager, walletdb.Namespace, fu
 
 	// Create the address manager
 	seed := bytes.Repeat([]byte{0x2a, 0x64, 0xdf, 0x08}, 8)
-	var fastScrypt = &waddrmgr.Options{ScryptN: 16, ScryptR: 8, ScryptP: 1}
+	var fastScrypt = &waddrmgr.ScryptOptions{N: 16, R: 8, P: 1}
 	mgr, err := waddrmgr.Create(
 		mgrNamespace, seed, pubPassphrase, privPassphrase, &chaincfg.MainNetParams, fastScrypt)
 	if err != nil {
@@ -319,11 +318,22 @@ func exampleCreatePoolAndSeries(mgr *waddrmgr.Manager, vpNamespace walletdb.Name
 	return pool, seriesID, nil
 }
 
-func exampleCreateTxStore() (*txstore.Store, func(), error) {
-	dir, err := ioutil.TempDir("", "tx.bin")
+func exampleCreateTxStore() (*wtxmgr.Store, func(), error) {
+	dir, err := ioutil.TempDir("", "pool_test_txstore")
 	if err != nil {
 		return nil, nil, err
 	}
-	s := txstore.New(dir)
+	db, err := walletdb.Create("bdb", filepath.Join(dir, "txstore.db"))
+	if err != nil {
+		return nil, nil, err
+	}
+	wtxmgrNamespace, err := db.Namespace([]byte("testtxstore"))
+	if err != nil {
+		return nil, nil, err
+	}
+	s, err := wtxmgr.Create(wtxmgrNamespace)
+	if err != nil {
+		return nil, nil, err
+	}
 	return s, func() { os.RemoveAll(dir) }, nil
 }

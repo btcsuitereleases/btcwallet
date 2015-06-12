@@ -1,4 +1,4 @@
-// Copyright (c) 2013, 2014 Conformal Systems LLC <info@conformal.com>
+// Copyright (c) 2015 The btcsuite developers
 //
 // Permission to use, copy, modify, and distribute this software for any
 // purpose with or without fee is hereby granted, provided that the above
@@ -12,16 +12,16 @@
 // ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 // OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-// +build !windows,!plan9
+package zero
 
-package rename
+// Bytea32 clears the 32-byte array by filling it with the zero value.
+// This is used to explicitly clear private key material from memory.
+func Bytea32(b *[32]byte) {
+	*b = [32]byte{}
+}
 
-import (
-	"os"
-)
-
-// Atomic provides an atomic file rename.  newpath is replaced if it
-// already exists.
-func Atomic(oldpath, newpath string) error {
-	return os.Rename(oldpath, newpath)
+// Bytea64 clears the 64-byte array by filling it with the zero value.
+// This is used to explicitly clear sensitive material from memory.
+func Bytea64(b *[64]byte) {
+	*b = [64]byte{}
 }
