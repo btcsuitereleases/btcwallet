@@ -21,7 +21,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/btcsuite/btcwallet/walletdb"
+	"github.com/btcsuitereleases/btcwallet/walletdb"
 )
 
 func TestPutUsedAddrHash(t *testing.T) {

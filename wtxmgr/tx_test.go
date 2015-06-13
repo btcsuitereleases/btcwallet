@@ -23,12 +23,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/btcsuite/btcd/blockchain"
-	"github.com/btcsuite/btcd/wire"
-	"github.com/btcsuite/btcutil"
-	"github.com/btcsuite/btcwallet/walletdb"
-	_ "github.com/btcsuite/btcwallet/walletdb/bdb"
-	. "github.com/btcsuite/btcwallet/wtxmgr"
+	"github.com/btcsuitereleases/btcd/blockchain"
+	"github.com/btcsuitereleases/btcd/wire"
+	"github.com/btcsuitereleases/btcutil"
+	"github.com/btcsuitereleases/btcwallet/walletdb"
+	_ "github.com/btcsuitereleases/btcwallet/walletdb/bdb"
+	. "github.com/btcsuitereleases/btcwallet/wtxmgr"
 )
 
 // Received transaction output for mainnet outpoint

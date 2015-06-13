@@ -17,7 +17,7 @@
 package main
 
 import (
-	"github.com/btcsuite/btcd/chaincfg"
+	"github.com/btcsuitereleases/btcd/chaincfg"
 )
 
 var activeNet = &testNet3Params

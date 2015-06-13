@@ -17,10 +17,10 @@
 package wallet
 
 import (
-	"github.com/btcsuite/btcd/txscript"
-	"github.com/btcsuite/btcwallet/chain"
-	"github.com/btcsuite/btcwallet/waddrmgr"
-	"github.com/btcsuite/btcwallet/wtxmgr"
+	"github.com/btcsuitereleases/btcd/txscript"
+	"github.com/btcsuitereleases/btcwallet/chain"
+	"github.com/btcsuitereleases/btcwallet/waddrmgr"
+	"github.com/btcsuitereleases/btcwallet/wtxmgr"
 )
 
 func (w *Wallet) handleChainNotifications() {

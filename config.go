@@ -24,9 +24,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/btcsuite/btcutil"
-	"github.com/btcsuite/btcwallet/internal/legacy/keystore"
-	flags "github.com/btcsuite/go-flags"
+	"github.com/btcsuitereleases/btcutil"
+	"github.com/btcsuitereleases/btcwallet/internal/legacy/keystore"
+	flags "github.com/btcsuitereleases/go-flags"
 )
 
 const (

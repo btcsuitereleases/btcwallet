@@ -22,9 +22,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/btcsuite/btcd/wire"
-	"github.com/btcsuite/btcutil"
-	"github.com/btcsuite/btcwallet/walletdb"
+	"github.com/btcsuitereleases/btcd/wire"
+	"github.com/btcsuitereleases/btcutil"
+	"github.com/btcsuitereleases/btcwallet/walletdb"
 )
 
 // Naming

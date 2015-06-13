@@ -25,17 +25,17 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/btcsuite/btcd/btcec"
-	"github.com/btcsuite/btcd/chaincfg"
-	"github.com/btcsuite/btcd/wire"
-	"github.com/btcsuite/btcutil"
-	"github.com/btcsuite/btcutil/hdkeychain"
-	"github.com/btcsuite/btcwallet/internal/legacy/keystore"
-	"github.com/btcsuite/btcwallet/waddrmgr"
-	"github.com/btcsuite/btcwallet/wallet"
-	"github.com/btcsuite/btcwallet/walletdb"
-	_ "github.com/btcsuite/btcwallet/walletdb/bdb"
-	"github.com/btcsuite/golangcrypto/ssh/terminal"
+	"github.com/btcsuitereleases/btcd/btcec"
+	"github.com/btcsuitereleases/btcd/chaincfg"
+	"github.com/btcsuitereleases/btcd/wire"
+	"github.com/btcsuitereleases/btcutil"
+	"github.com/btcsuitereleases/btcutil/hdkeychain"
+	"github.com/btcsuitereleases/btcwallet/internal/legacy/keystore"
+	"github.com/btcsuitereleases/btcwallet/waddrmgr"
+	"github.com/btcsuitereleases/btcwallet/wallet"
+	"github.com/btcsuitereleases/btcwallet/walletdb"
+	_ "github.com/btcsuitereleases/btcwallet/walletdb/bdb"
+	"github.com/btcsuitereleases/golangcrypto/ssh/terminal"
 )
 
 // Namespace keys

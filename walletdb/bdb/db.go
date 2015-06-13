@@ -20,8 +20,8 @@ import (
 	"io"
 	"os"
 
-	"github.com/btcsuite/bolt"
-	"github.com/btcsuite/btcwallet/walletdb"
+	"github.com/btcsuitereleases/bolt"
+	"github.com/btcsuitereleases/btcwallet/walletdb"
 )
 
 // convertErr converts some bolt errors to the equivalent walletdb error.
